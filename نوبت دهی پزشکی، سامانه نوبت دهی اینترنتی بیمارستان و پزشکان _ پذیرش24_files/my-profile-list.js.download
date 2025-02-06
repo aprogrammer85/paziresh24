@@ -1,0 +1,205 @@
+//!function(){var i="T1hkHh",a=window,d=document;function g(){var g=d.createElement("script"),s="https://www.goftino.com/widget/"+i,l=localStorage.getItem("goftino_"+i);g.async=!0,g.src=l?s+"?o="+l:s;d.getElementsByTagName("head")[0].appendChild(g);}"complete"===d.readyState?g():a.attachEvent?a.attachEvent("onload",g):a.addEventListener("load",g,!1);}();
+
+jQuery(document).ready(function($) {
+
+    const defaultPhotoUrl = '/wp-content/plugins/supporters-profiles/image/unknown-support.png'; 
+    let appurl = 'https://support-nocodb.paziresh24.com/';
+
+    // Check if the 'id' URL parameter is present
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasIdParam = urlParams.has('id');
+    
+
+    var profileList = profileListData; // Use the data embedded from PHP
+    var html = '<div class="profile-list">';
+    $.each(profileList, function(index, profile) {
+        html += '<div class="profile">';
+        html += '<div class="profile-photo">';
+        if (profile.photo && profile.photo.length > 0 && profile.photo[0].path) {
+            if (!appurl.endsWith('/')) {
+                appurl += '/';
+            }
+            const imageUrl = appurl + profile.photo[0].path;
+
+            html += `<a href="?id=${profile.Id}"><img src="${imageUrl}" alt="${profile.name}"></a>`;
+        } else {
+            html += `<a href="?id=${profile.Id}"><img src="${defaultPhotoUrl}" alt="Default Photo"></a>`;
+        }
+        if (profile.is_online) {
+            html += '<div class="online-status"></div>';
+        }
+
+        html += '</div>'; // Close profile-photo div
+        html += '<div class="profile-info">';
+        html += `<div class="profile-name"><a href="?id=${profile.Id}">` + profile.name + `</a></div>`;
+
+        // Add star ratings
+        html += '<div class="profile-rate">';
+        for (let i = 1; i <= 5; i++) {
+            if (profile.rate >= i) {
+                html += '<span class="star filled">&#9733;</span>'; // filled star
+            } else {
+                html += '<span class="star">&#9734;</span>'; // empty star
+            }
+        }
+        html += `<div class="out-of"><strong>${profile.rate.toFixed(1)}</strong> (${profile.number_of_rates} نظر)</div>`;
+        html += '</div>'; // Close profile-rate div
+
+        if (profile["badge"] !== null && profile["badge"] !== '') {
+            html += '<div class="profile-badge">' + profile["badge"] + '</div>';
+        }
+        //html += '<div class="profile-experience">مدت زمان انتظار تا اولین پاسخ: ' + profile["waiting time"] + '</div>';
+        html += '<div class="profile-answered-number">پاسخگویی به ' + profile["answered number"] + ' درخواست کاربران</div>';
+        html += '<div class="profile-departments">پاسخگویی به سوالات: <div class=profile-departments-inside>' + profile.departments + '</div></div>';
+        html += '</div>'; // Close profile-info div
+
+        
+
+        // Conditionally add the button if there's no 'id' URL parameter
+        if (!hasIdParam) {
+            //if (profile.is_online) {
+                // Button for online operators
+                //html += `<div><a href="?id=${profile.Id}" class="contact-button">برو به صفحه پشتیبان</a></div>`;
+            //} else {
+                // Button for offline operators
+                html += `<div><a href="/new-ticket?operator_id=${profile.Id}" class="contact-button">درخواست پشتیبانی</a></div>`;
+            //}
+        }
+
+            // Check if the page has an 'id' URL parameter and profiles are loaded
+    if (hasIdParam === true && profileId && profileListData.length > 0) {
+        html += `<div><a href="/new-ticket?operator_id=${profile.Id}" class="contact-button">درخواست پشتیبانی</a></div>`;
+        var profileName = '';
+        // Find the profile in the list matching the ID
+        $.each(profileListData, function(index, profile) {
+            if (profile.Id.toString() === profileId.toString()) {
+                profileName = profile.name;
+                return false; // Break loop once the profile is found
+            }
+        });
+
+        // If a matching profile was found, append its name to the breadcrumb
+        if (profileName) {
+            $('#profile-name-placeholder').text(profileName);
+        }
+    }
+
+            // If the page has an 'id' URL parameter, customize the Goftino widget
+    if (hasIdParam === true) {
+        window.addEventListener('goftino_ready', function () {
+            Goftino.setWidget({
+                hasIcon: false, // Hide the default icon
+                counter: '#unread_counter' // Custom unread message counter
+            });
+
+            // Custom button to toggle the Goftino widget
+            document.getElementById("new_widget_button").addEventListener("click", function () {
+                Goftino.toggle();
+            });
+        });
+
+        // Append the custom button to the body or a specific container
+        /*if (profile.is_online) {
+        html += `<div id="new_widget_button">گفتگو با پشتیبان<span id="unread_counter">5</span></div>`;
+        }
+        else {
+            html += `<div id="new_widget_button" style="background: #cfcfcf;">پشتیبان در دسترس نیست<span id="unread_counter">5</span></div>`
+    }*/
+    }
+
+        html += '</div>'; // Close profile div
+
+// Inside your document.ready function and after profiles are loaded
+
+if (hasIdParam && profileId && profileListData.length > 0) {
+    var reviewsHtml = '<div class="reviews-container">';
+    html += '<br><h4>نظرات کاربران</h4>';
+    html += '<div id="npsChart-container"><canvas id="npsChart"></canvas></div>';
+    // Assuming `profileListData` contains the reviews data for the profile in view
+    $.each(profileListData[0].reviews, function(index, review) {
+        reviewsHtml += '<div class="review">';
+        reviewsHtml += `<div class="review-user">نام کاربر: ${review.user_name}</div>`;
+        reviewsHtml += `<div class="review-rate">امتیاز: ${review.rate}</div>`;
+
+        if (review.why_good) {
+            var goods = review.why_good.split(',');
+            $.each(goods, function(i, good) {
+                reviewsHtml += `<div class="review-good">${good}</div>`;
+            });
+        }
+
+        if (review.why_bad) {
+            var bads = review.why_bad.split(',');
+            $.each(bads, function(i, bad) {
+                reviewsHtml += `<div class="review-bad">${bad}</div>`;
+            });
+        }
+
+        if (review.description) {
+            reviewsHtml += `<div class="review-description">${review.description}</div>`;
+        }
+
+        reviewsHtml += '</div>'; // Close .review
+    });
+
+    reviewsHtml += '</div>'; // Close .reviews-container
+
+    // Append or insert the reviewsHtml in your profile detail container
+    $('#profile-list-container').after(reviewsHtml);
+}
+
+
+    });
+    html += '</div>'; // Close profile-list div
+    $('#profile-list-container').html(html);
+});
+
+
+jQuery(document).ready(function($) {
+    const ctx = document.getElementById('npsChart').getContext('2d');
+    
+    function getAspectRatio() {
+        // Set aspect ratio to 3 on desktops and 1 on screens narrower than 768 pixels
+        return window.innerWidth >= 768 ? 3 : 1;
+    }
+
+    const npsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: npsData.map(item => new Date(item.week_start).toLocaleDateString()),
+            datasets: [{
+                label: 'میزان رضایت کاربران',
+                data: npsData.map(item => item.nps),
+                fill: false,
+                borderColor: '#3861fb',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: getAspectRatio(),  // Initial aspect ratio
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: 100
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true
+                },
+                tooltip: {
+                    enabled: true
+                }
+            }
+        }
+    });
+
+    // Listen to resize events to update the aspect ratio
+    window.addEventListener('resize', function() {
+        npsChart.options.aspectRatio = getAspectRatio();
+        npsChart.update();
+    });
+});
+

@@ -1,0 +1,930 @@
+let faqs = [];
+
+function getWords(text) {
+    return text.split(/\s+/).filter(word => word.length > 0);
+}
+
+function searchFAQ(query) {
+    let queryWords = getWords(query.toLowerCase());
+
+    let scoredMatches = faqs.map(list => {
+        let faqWords = getWords((list.question_text + " " + list.answer_text).toLowerCase());
+        let commonWords = queryWords.filter(word => faqWords.includes(word)).length;
+        return { ...list, score: commonWords };
+    });
+
+    let topMatches = scoredMatches.sort((a, b) => b.score - a.score).slice(0, 3).filter(list => list.score >= 2);
+
+    let faqResultsDiv = document.getElementById("faq-results");
+    faqResultsDiv.innerHTML = '';
+    if (topMatches.length > 0) {
+        faqResultsDiv.style.display = "block";
+        topMatches.forEach(result => {
+            let div = document.createElement('div');
+            div.innerHTML = `<strong>سوال:</strong> ${result.question_text} <br> <strong>پاسخ:</strong> ${result.answer_text}`;
+            faqResultsDiv.appendChild(div);
+        });
+    } else {
+        faqResultsDiv.style.display = "none";
+    }
+}
+
+
+jQuery(document).ready(function($) {
+
+        $('#reply-file-upload-btn').on('click', function() {
+        $('#reply-file-upload').click();
+    });
+
+    let replyUploadedFiles = [];
+    $('#reply-file-upload').on('change', function() {
+        var files = this.files;
+        Array.from(files).forEach(function(file) {
+            uploadreplyFile(file, function(response) { // Pass a callback to handle the response
+                if (response.success) {
+                    replyUploadedFiles.push(response.data.attachment_id); // Store the attachment ID
+                } else {
+                    // Handle failure
+                    alert('Failed to upload ' + file.name);
+                }
+            });
+        });
+    });
+
+    function uploadreplyFile(file, callback) {
+        var formData = new FormData();
+        formData.append('action', 'upload_attachment'); // Your AJAX action
+        formData.append('nonce', ctfAjax.nonce); // Your nonce for security
+        formData.append('file', file);
+
+        // AJAX call to server to upload the file
+        $.ajax({
+            url: ctfAjax.ajaxurl,
+            type: 'POST',
+            processData: false,
+            contentType: false,
+            data: formData,
+            success: function(response) {
+                callback(response); // Call the callback with the response
+                $('<div/>').text(file.name + ' بارگذاری شد.').appendTo('#reply-file-upload-list');
+            },
+            error: function() {
+                alert('با خطا مواجه شد. ' + file.name);
+            }
+        });
+    }
+
+
+        var departmentMapping = {
+        'بیمار': '1',
+        'پزشک': '3',
+        'همکاران مراکز درمانی': '23'
+    };
+    var allData = {}; // Store all data from API
+
+    if (ctfAjax.recentTicket && ctfAjax.recentTicket.id) {
+        // Use SweetAlert2 to show the popup
+        Swal.fire({
+           // title: 'توجه',
+            html: 'شما اخیرا یک درخواست با عنوان «<strong>' + ctfAjax.recentTicket.title + '</strong>» ارسال کرده‌اید. اگر موضوع حل نشده است، گفتگو را در همان درخواست ادامه دهید.',
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'برو به درخواست قبلی',
+            cancelButtonText: 'درخواست دیگری دارم',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Redirect to the ticket details page
+                window.location.href = '/tickettext/?ticket-id=' + ctfAjax.recentTicket.id;
+            }
+            // If canceled, do nothing; user can proceed to submit new ticket
+        });
+    }
+
+
+    function loadFormData() {
+        $.ajax({
+            url: ctfAjax.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'fetch_ticket_form_data',
+                nonce: ctfAjax.nonce
+            },
+            success: function(response) {
+                if (response.success && response.data && response.data.data) {
+                    allData = response.data.data; // Store the data
+                    populateSelect($('#department'), allData.departments, 'visibility', true);
+    
+                    //setDepartmentFromUrl(); // Call this function after the data is loaded
+                    setDepartmentAndProductFromUrl();
+
+                }
+            }
+        });
+    }
+    
+
+    // Function to automatically set the department and product from URL parameters
+function setDepartmentAndProductFromUrl() {
+    // Get department and product from URL parameters
+    var departmentId = getQueryParam('department');
+    var productId = getQueryParam('product');
+    
+    // Set department if available
+    if (departmentId && allData.departments) {
+        $('#department').val(departmentId).change();
+        $('.custom-select-container').first().hide(); // Hide the department dropdown
+ 
+        // Wait for the products to load based on the department
+        // Assuming there's a way to detect when this has finished, possibly by observing changes or a callback
+        setTimeout(function() { // This is a simple workaround. You might want to implement a more reliable way to wait for the product list to update.
+            if (productId) {
+                $('#product').val(productId).change();
+            }
+        }, 1000); // Adjust timeout as necessary based on how your product loading works
+    }
+}
+
+
+
+
+    function getQueryParam(param) {
+        var searchParams = new URLSearchParams(window.location.search);
+        return searchParams.get(param);
+    }
+
+    //setDepartmentFromUrl();
+    setDepartmentAndProductFromUrl();
+
+    
+
+    function populateSelect($select, items, filterKey, filterValue, addDefaultOption = true, renameOptions = {}) {
+        $select.empty(); // Clear any existing options
+    
+        // Optionally add a placeholder as the first option
+        if (addDefaultOption) {
+            $select.append($('<option>', {
+                value: '',
+                text: 'انتخاب کنید',
+                selected: true,
+                disabled: true
+            }));
+        }
+    
+        // Loop through the items and add them as options
+        items.forEach(function(item) {
+            if (!filterKey || item[filterKey] === filterValue) {
+                let itemName = item.name;
+                // Check if the item's name should be renamed
+                if (renameOptions[itemName]) {
+                    itemName = renameOptions[itemName];
+                }
+                var option = $('<option>').val(item.id).text(itemName);
+                $select.append(option);
+            }
+        });
+    }
+    
+    
+    function getQueryParam(param) {
+        var searchParams = new URLSearchParams(window.location.search);
+        return searchParams.get(param);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const dragDropArea = document.getElementById('drag-drop-area');
+        const fileInput = document.getElementById('file-upload');
+    
+        dragDropArea.addEventListener('dragover', function(event) {
+            event.preventDefault();
+            // Add styles or feedback
+            dragDropArea.classList.add('drag-over');
+        });
+    
+        dragDropArea.addEventListener('dragleave', function(event) {
+            event.preventDefault();
+            // Remove styles or feedback
+            dragDropArea.classList.remove('drag-over');
+        });
+    
+        dragDropArea.addEventListener('drop', function(event) {
+            event.preventDefault();
+            // Remove styles or feedback
+            dragDropArea.classList.remove('drag-over');
+            // Process files
+            const files = event.dataTransfer.files;
+            Array.from(files).forEach(uploadFile); // Assuming uploadFile is your function to handle the file upload
+        });
+    
+        document.getElementById('file-upload-btn').addEventListener('click', function() {
+            fileInput.click(); // Trigger the file input dialog
+        });
+    
+        fileInput.addEventListener('change', function() {
+            Array.from(this.files).forEach(uploadFile); // Handle file selection via input
+        });
+    
+        });
+
+        let uploadInProgressCount = 0; // Counter for tracking uploads
+
+    function updateSubmitButtonState() {
+    const submitButton = document.getElementById('submitBtn'); // Adjust the ID as necessary
+    if (uploadInProgressCount > 0) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = 'در حال بارگذاری فایل ها';
+        submitButton.style.backgroundColor = 'grey';
+    } else {
+        submitButton.disabled = false;
+        submitButton.innerHTML = 'ارسال تیکت'; // Original text
+        submitButton.style.backgroundColor = ''; // Reset to original color
+    }
+    }
+
+
+    // Allowed file formats
+const allowedFormats = ['png', 'jpg', 'jpeg', 'gif', 'pdf', 'rar', 'zip', 'xls', 'xlsx', 'docx', 'doc'];
+
+// Maximum total file size (10MB)
+const maxTotalSize = 10 * 1024 * 1024; // 10MB in bytes
+
+// Maximum number of files
+const maxFileCount = 5;
+
+let totalFileSize = 0; // Variable to keep track of total file size
+
+function isValidFile(file) {
+    // Check file format
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    if (!allowedFormats.includes(fileExtension)) {
+        alert('فرمت فایل مجاز نیست. فرمت‌های مجاز عبارتند از: ' + allowedFormats.join(', '));
+        return false;
+    }
+
+    // Check total file size
+    if ((totalFileSize + file.size) > maxTotalSize) {
+        alert('حجم کل فایل‌ها نباید از 10MB بیشتر شود.');
+        return false;
+    }
+
+    // Check total file count
+    if (uploadedFiles.length >= maxFileCount) {
+        alert('تعداد فایل‌های پیوست نمی‌تواند بیشتر از 5 باشد.');
+        return false;
+    }
+
+    // If all checks pass
+    return true;
+}
+
+
+
+
+        function uploadFile(file) {
+
+            if (!isValidFile(file)) {
+                return; // Stop the function if the file is not valid
+            }
+        
+            // Add the file size to the total
+            totalFileSize += file.size;
+
+            const fileId = 'file-' + Date.now();
+            const fileElement = document.createElement('div');
+            fileElement.id = fileId;
+            fileElement.className = 'file-upload-item';
+            fileElement.innerHTML = `
+                <div class="file-preview" style="background-image: url('${URL.createObjectURL(file)}');">
+                    <div class="file-overlay"></div>
+                    <div class="file-details">
+                        <div class="file-info">
+                            <span class="file-name">${file.name}</span>
+                            <span class="file-size">${(file.size / 1024).toFixed(2)} KB</span>
+                        </div>
+                        <div class="file-status-and-delete">
+                            <span class="file-status">در حال بارگذاری...</span>
+                            <span class="file-delete" onclick="removeUploadedFile('${fileId}')">حذف</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('file-upload-list').appendChild(fileElement);
+                    
+            // Create FormData to send the file to WordPress
+            const formData = new FormData();
+            formData.append('action', 'upload_attachment'); // The WordPress AJAX action for handling file uploads
+            formData.append('file', file);
+            formData.append('nonce', ctfAjax.nonce); // Nonce for security, assuming ctfAjax.nonce is set correctly
+
+            // Increment the upload counter and update the button state
+            uploadInProgressCount++;
+            updateSubmitButtonState();
+        
+            // Upload the file
+            fetch(ctfAjax.ajaxurl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // The file has been uploaded successfully
+                    document.querySelector(`#${fileId} .file-status`).textContent = 'آپلود شد ✓';
+                    uploadedFiles.push({
+                        id: fileId,
+                        name: file.name,
+                        attachmentId: data.data.attachment_id // or use attachmentUrl if you need the URL instead
+                    });
+                } else {
+                    // There was an error during the file upload
+                    document.querySelector(`#${fileId} .file-status`).textContent = 'شکست خورد ✗';
+                }
+            })
+            .catch(error => {
+                document.querySelector(`#${fileId} .file-status`).textContent = 'خطا ✗';
+            })
+            .finally(() => {
+                // Decrement the upload counter and update the button state
+                uploadInProgressCount--;
+                updateSubmitButtonState();
+            });
+        }
+        
+        function removeUploadedFile(fileId) {
+            const fileElement = document.getElementById(fileId);
+            if (fileElement) {
+                fileElement.parentNode.removeChild(fileElement);
+            }
+            alert('فایل با موفقیت حذف شد');
+        
+            // Update the uploadedFiles array
+            uploadedFiles = uploadedFiles.filter(file => file.id !== fileId);
+        }
+        
+        // Initialize the uploadedFiles array
+        let uploadedFiles = [];
+        
+        
+        // Make sure removeUploadedFile is declared in the global scope
+        window.removeUploadedFile = function(fileId, fileName) {
+            // Filter out the file to be removed
+            uploadedFiles = uploadedFiles.filter(file => file.id !== fileId);
+            
+            // Remove the file element from the UI
+            const fileElement = document.getElementById(fileId);
+            if (fileElement) {
+                fileElement.parentNode.removeChild(fileElement);
+            }
+            alert('فایل با موفقیت حذف شد');
+        };
+
+    function updateRelatedFields(departmentId) {
+        if (!allData.ticket_categories || !allData.departments) {
+            return;
+        }
+    
+        var categories = allData.ticket_categories.filter(function(category) {
+            return category.department_id == departmentId;
+        });
+        populateSelect($('#category'), categories, undefined, undefined, true); // Keep as is for categories
+    
+        // Filter and update products
+        var department = allData.departments.find(function(dept) {
+            return dept.id == departmentId;
+        });
+        var products = department ? department.services : [];
+        // Do not add the default option for products and rename "پذیرش 24" to "مطمئن نیستم"
+        populateSelect($('#product'), products, undefined, undefined, false, {"پذیرش 24": "عمومی"});
+    }
+    
+    
+    function updateCustomFields(departmentId) {
+        // Filter custom fields for the selected department
+        var customFields = allData.custom_fields.filter(function(field) {
+            return field.department_id == departmentId;
+        });
+    
+        // Clear any previously added custom fields
+        $('#custom-fields-container').empty();
+    
+        // Dynamically create and append each custom field to the container
+        customFields.forEach(function(field) {
+            var fieldOptions = JSON.parse(field.options);
+            var label = $('<label>').text(fieldOptions.label);
+            var input = $('<input>').attr({
+                type: field.type,
+                name: field.id,
+                'min-length': fieldOptions.min_length,
+                'max-length': fieldOptions.max_length
+            });
+    
+            // Append the label and input to the custom fields container
+            $('#custom-fields-container').append(label, input);
+        });
+    }
+    $('#department').change(function() {
+        var selectedDepartment = $(this).val();
+        updateRelatedFields(selectedDepartment);
+        updateCustomFields(selectedDepartment);
+    
+        // Get the department name
+        var departmentName = $(this).find('option:selected').text();
+    
+        // Get the corresponding department ID from the mapping
+        var departmentId = departmentMapping[departmentName];
+    
+        if (departmentId) {
+            // Fetch FAQs based on the department ID
+            loadFAQsBasedOnDepartment(departmentId);
+        }
+    });    
+
+    $('#file-upload').on('change', function() {
+        // Make sure to clear the previous array of uploadedFiles if you're reusing the form
+        uploadedFiles = []; 
+        totalFileSize = 0;
+        Array.from(this.files).forEach(function(file) {
+            uploadFile(file); // Reference the uploadFile function correctly
+        });
+    });
+
+    $('#file-upload-btn').on('click', function() {
+        $('#file-upload').click(); // Trigger the file input dialog
+    });
+    
+        $('#submit-reply').on('click', function() {
+        var ticketId = getQueryParam('ticket-id');
+        var replyContent = $('#ticket-reply-content').val();
+
+        var $button = $(this);
+        var buttonText = $button.html();
+
+        $button.prop('disabled', true).html('<div class="spinner"></div>'); // Add spinner
+
+        $.ajax({
+            url: ctfAjax.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'submit_ticket_reply',
+                ticket_id: ticketId,
+                content: replyContent,
+                nonce: ctfAjax.nonce,
+                files: replyUploadedFiles // Include the array of uploaded file IDs
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success message with Swal
+                    Swal.fire({
+                        title: 'ارسال شد',
+                        text: 'بلافاصله بعد از دریافت پاسخ، پیامک دریافت خواهید کرد.',
+                        icon: 'success',
+                        confirmButtonText: 'باشه'
+                    }).then((result) => {
+                        if (result.isConfirmed || result.dismiss === Swal.DismissReason.backdrop) {
+                            // Refresh the page and force scroll to the top
+                            window.location.href = window.location.href.split('#')[0] + '#lastreply';
+                            window.location.reload();
+                        }
+                        
+                    });
+                } else {
+                    // Show error message with Swal
+                    Swal.fire({
+                        title: 'خطا',
+                        text: response.data.message || 'یک مشکل ناشناخته رخ داد.',
+                        icon: 'error',
+                        confirmButtonText: 'باشه'
+                    });
+                }
+            },
+            error: function() {
+                // Handle AJAX error
+                Swal.fire({
+                    title: 'خطا',
+                    text: 'یک مشکل فنی رخ داد. صفحه را ببندید و دوباره امتحان کنید.',
+                    icon: 'error',
+                    confirmButtonText: 'باشه'
+                });
+            },
+            complete: function() {
+                $button.prop('disabled', false).html(buttonText); // Remove spinner and show button text
+            }
+        });
+    });
+
+    $('.feedback-emojis .emoji').on('click', function() {
+        var rating = $(this).data('rating');
+        var ticketId = getQueryParam('ticket-id');
+
+        // Disable further clicks on emojis
+        $('.feedback-emojis .emoji').off('click');
+         
+        // Before sending the AJAX request, indicate which emoji was clicked
+        $('.feedback-emojis .emoji').removeClass('selected');
+        $(this).addClass('selected');
+    
+        $.ajax({
+            url: ctfAjax.ajaxurl,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                'action': 'submit_ticket_satisfaction',
+                'ticket_id': ticketId,
+                'satisfaction': rating,
+                'nonce': ctfAjax.nonce
+            },
+            beforeSend: function() {
+                // Optionally add a loading spinner and remove it later in the 'complete' callback
+                // For example, let's say you have a div with class 'spinner' ready for this
+                $('.feedback-container').append('<div class="spinner"></div>');
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'موفقیت',
+                        text: 'امتیاز شما با موفقیت ثبت شد.',
+                        icon: 'success',
+                        confirmButtonText: 'باشه'
+                    });
+                } else {
+                    // Re-enable click on emojis after error
+                    attachEmojiClickHandlers();
+                    // Show error message
+                    Swal.fire({
+                        title: 'خطا',
+                        text: response.data.message || 'خطایی در ثبت امتیاز رخ داده است.',
+                        icon: 'error',
+                        confirmButtonText: 'باشه'
+                    });
+                }
+            },
+            complete: function() {
+                // Remove the spinner
+                $('.spinner').remove();
+                // Re-enable click on emojis after AJAX call is complete if success
+                if (!response.success) {
+                    attachEmojiClickHandlers();
+                }
+            }
+        });
+    });
+
+    function loadFAQsBasedOnDepartment(departmentId) {
+        fetch('https://apigw.paziresh24.com/v1/support/faq(department_id,eq,' + departmentId + ')')
+            .then(response => response.json())
+            .then(data => {
+                faqs = data.list;
+            });
+    }
+    
+
+    function attachEmojiClickHandlers() {
+        $('.feedback-emojis .emoji').on('click', function() {
+            // The original click handler code
+        });
+    }
+    
+    attachEmojiClickHandlers();
+
+    loadFormData();
+
+        // Event handler for viewing ticket details
+        $('.tickets-list').on('click', '.view-ticket-details', function() {
+            var ticketId = $(this).data('ticket-id');
+            var detailPageUrl = '/tickettext'; // Adjust the path
+    
+            // Redirect to the ticket details page with the ticket ID
+            window.location.href = detailPageUrl + '?ticket-id=' + ticketId;
+        });
+    // Handle form submission
+    $('#ticketForm').submit(function(event) {
+        if (uploadInProgressCount > 0) {
+            // Prevent form submission if uploads are in progress
+            event.preventDefault();
+            alert('لطفا تا پایان بارگذاری فایل ها صبر کنید.');
+            return;
+        }
+        event.preventDefault();
+
+        // Immediately disable the submit button
+        var submitBtn = $('#submitBtn'); //added
+        submitBtn.prop('disabled', true);//added
+        //submitBtn.style.backgroundColor = '#ccc';//added
+
+        
+        var formDataArray = $(this).serializeArray();
+        var dataToSend = {};
+    
+                // Add form data to the dataToSend object
+        /*formDataArray.forEach(function(field) {  
+            dataToSend[field.name] = field.value;
+        }); */
+
+        formDataArray.forEach(function(field) {
+            // Assign the visit field value to custom field 12, and exclude visit from being added directly
+            if (field.name === 'visit') {
+                dataToSend['12'] = field.value; // Assigning visit value to custom field ID 12
+            } else {
+                dataToSend[field.name] = field.value;
+            }
+        });
+    
+        // Add action and nonce to the data object
+        dataToSend.action = 'submit_ticket_form';
+        dataToSend.nonce = ctfAjax.nonce;
+        dataToSend.operator_id = getQueryParam('operator_id');
+    
+        // Collect file IDs from uploadedFiles array
+        dataToSend.files = uploadedFiles.map(file => file.attachmentId);
+    
+        // Disable form elements and show spinner
+        $(this).find('input, select, textarea, button').prop('disabled', true);
+        $('#submitBtn').html('<div class="spinner-container"><div class="spinner"></div></div>');
+
+        $.ajax({
+            type: 'POST',
+            url: ctfAjax.ajaxurl,
+            data: dataToSend,
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'ارسال شد',
+                        icon: 'success',
+                        confirmButtonText: 'باشه',
+                        html: `
+                            <p>${response.data.message}</p>
+                            <button id="btn1" class="swal2-confirm swal2-styled">باشه</button>
+                            <button id="btn2" class="swal2-confirm public-ticket-button">مشاهده درخواست های عمومی کاربران</button>
+                        `, // Custom HTML with two buttons
+                        showConfirmButton: false, // Hide the default confirm button
+                        didOpen: () => {
+                            // Add event listeners to the buttons
+                            document.getElementById('btn1').addEventListener('click', () => {
+                                window.location.href = 'https://newsupport.paziresh24.com/tickets'; // Destination URL for button 1
+                            });
+                            document.getElementById('btn2').addEventListener('click', () => {
+                                window.location.href = 'https://newsupport.paziresh24.com/public-tickets'; // Destination URL for button 2
+                            });
+                        },
+                        didClose: () => {
+                            // Redirect to the default URL if the modal is closed without button clicks
+                            window.location.href = 'https://newsupport.paziresh24.com/tickets';
+                        }
+                    });                    
+                    
+                    /*Swal.fire({
+                        title: 'ارسال شد',
+                        text: response.data.message,
+                        icon: 'success',
+                        confirmButtonText: 'باشه',
+                        showConfirmButton: true,
+                        preConfirm: () => {
+                            window.location.href = 'https://newsupport.paziresh24.com/tickets'; // Destination URL
+                        }
+                    });*/                                     
+                } else {
+                    submitBtn.prop('disabled', false); //added
+                    //submitBtn.style.backgroundColor = '#3861fb'; //added
+                    Swal.fire({
+                        title: 'خطا!',
+                        text: response.data.message,
+                        icon: 'error',
+                        confirmButtonText: 'باشه'
+                    }).then(() => {
+                        // Re-enable form and hide spinner
+                        $('#ticketForm').find('input, select, textarea, button').prop('disabled', false);
+                        $('#submitBtn').html('ارسال تیکت');
+                    });
+                }
+            },
+            error: function() {
+                Swal.fire({
+                    title: 'خطا!',
+                    text: 'مشکلی رخ داده است.',
+                    icon: 'error',
+                    confirmButtonText: 'باشه'
+                }).then(() => {
+                    // Re-enable form and hide spinner
+                    submitBtn.prop('disabled', false); //added
+                    //submitBtn.style.backgroundColor = '#3861fb'; //added
+                    $('#ticketForm').find('input, select, textarea, button').prop('disabled', false);
+                    $('#submitBtn').html('ارسال تیکت');
+                });
+            }
+        });
+    });   
+});
+
+let fetchController = new AbortController(); // Initialize outside to have wider scope
+
+document.addEventListener('DOMContentLoaded', function() {
+        const publicTicketCheckbox = document.getElementById('public_ticket');
+    
+        publicTicketCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                Swal.fire({
+                    html: 'با تایید این گزینه، ابراز اطمینان می کنم که در عنوان و متن این تیکت اطلاعات محرمانه ای در مورد من و دیگران وجود ندارد.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    cancelButtonText: 'اطلاعات محرمانه وجود دارد',
+                    confirmButtonText: 'تایید می کنم',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        publicTicketCheckbox.checked = true;
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        publicTicketCheckbox.checked = false;
+                    }
+                });
+            }
+        });
+    
+    const departmentDropdown = document.getElementById('department');
+    const titleInput = document.getElementById('title');
+    const customfieldsinput = document.getElementById('custom-fields-container');
+    const visitsDropdownContainer = document.getElementById('visits-dropdown-container');
+    const visitsDropdown = document.getElementById('visit');
+    const form = document.getElementById('ticketForm');
+
+    let currentDepartment = departmentDropdown.value; // Track the current department
+
+
+    // Step 1: Automatically trigger behavior based on URL query parameters
+    function checkUrlAndSetDepartment() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const departmentParam = urlParams.get('department');
+        if (departmentParam === '3') {
+            departmentDropdown.value = '3'; // Assuming you have a value "3" in your options
+            handlePatientDepartment();
+                }
+    }
+
+    function handlePatientDepartment() {
+        // Handle behavior for 'بیمار' department
+        titleInput.style.display = 'none';
+        customfieldsinput.style.display = 'none';
+        fetchVisitsData();
+    }
+
+    function triggerVisitFetchAndHideTitle() {
+        if (currentDepartment === '3') { // Check if department is still 'بیمار'
+            titleInput.style.display = 'none';
+            customfieldsinput.style.display = 'none';
+            fetchVisitsData(); // Proceed only if department hasn't changed
+        } else {
+            // Reset state if department has changed
+            visitsDropdownContainer.style.display = 'none';
+        }
+    }
+
+    departmentDropdown.addEventListener('change', function() {
+        currentDepartment = this.value; // Update current department
+        if (this.value === '3' || this.options[this.selectedIndex].text === 'بیمار') {
+            triggerVisitFetchAndHideTitle();
+        } else {
+            // Immediately reset state if department is not 'بیمار'
+            titleInput.style.display = 'block';
+            customfieldsinput.style.display = 'block';
+            visitsDropdownContainer.style.display = 'none';
+            fetchController.abort(); // Abort any ongoing fetch for visits
+        }
+    });
+    
+    visitsDropdown.addEventListener('change', function() {
+        titleInput.style.display = this.value === 'none' ? 'block' : 'none';
+        customfieldsinput.style.display = this.value === 'none' ? 'block' : 'none';
+    });
+
+        function fetchVisitsData() {
+            fetchController.abort(); // Abort any existing fetch operation
+            fetchController = new AbortController(); // Create a new controller for the new fetch
+        
+            fetch('https://api.paziresh24.com/V1/patient/visits?page=1&return_type=book', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                signal: fetchController.signal
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok'); // Handle non-2xx responses
+                }
+                return response.json();
+            })
+            .then(data => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const departmentParam = urlParams.get('department');
+                if (departmentParam === '3') {
+                    if (data.length === 0) { // Check if the response contains no visits
+                        // Show the hidden fields if there are no visits
+                        showHiddenFields();
+                    } else {
+                        populateVisitsDropdown(data);
+                    }
+                        }
+                if (currentDepartment === '3') { // Only process data if department is still 'بیمار'
+                    if (data.length === 0) { // Check if the response contains no visits
+                        // Show the hidden fields if there are no visits
+                        showHiddenFields();
+                    } else {
+                        populateVisitsDropdown(data);
+                    }
+                }
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error('Error fetching visit data:', error);
+                    // Show the hidden fields if there was an error fetching the data
+                    showHiddenFields();
+                }
+            });
+        }
+        
+        function showHiddenFields() {
+            titleInput.style.display = 'block';
+            customfieldsinput.style.display = 'block';
+            visitsDropdownContainer.style.display = 'none'; // Hide the visits dropdown since it's irrelevant in this case
+        }
+              
+            form.addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission
+        
+            // Your existing logic to set up form data
+            const selectedVisitOption = visitsDropdown.options[visitsDropdown.selectedIndex];
+            const titleValue = selectedVisitOption.value !== 'none' ? selectedVisitOption.text : titleInput.value;
+            titleInput.value = titleValue; // Update the form's title input
+        });
+        
+        
+        
+
+
+    checkUrlAndSetDepartment(); // Initial check based on URL
+
+
+  /*  function populateVisitsDropdown(visits) {
+        visitsDropdownContainer.style.display = 'block';
+        visitsDropdown.innerHTML = ''; // Clear existing options
+    
+        // Placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.textContent = 'لطفا یک گزینه را انتخاب کنید';
+        placeholderOption.value = '';
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        visitsDropdown.appendChild(placeholderOption);
+    
+        visits.forEach(visit => {
+            const option = document.createElement('option');
+            option.value = visit.ref_id;
+            option.textContent = `پزشک: ${visit.doctor_info.name} ${visit.doctor_info.family} - ${visit.book_time_string}`;
+            // Store the submission title in a data attribute
+            option.setAttribute('data-submission-title', `درخواست پشتیبانی برای ویزیت با ${visit.doctor_info.name} ${visit.doctor_info.family}`);
+            visitsDropdown.appendChild(option);
+        });
+    
+        // None of the above option
+        const noneOption = document.createElement('option');
+        noneOption.value = 'none';
+        noneOption.textContent = 'هیچکدام';
+        visitsDropdown.appendChild(noneOption);
+    }*/
+    
+    function populateVisitsDropdown(visits) {
+        visitsDropdownContainer.style.display = 'block';
+        visitsDropdown.innerHTML = ''; // Clear existing options
+    
+        // Make the select element required
+        visitsDropdown.required = true;
+    
+        // Placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.textContent = 'لطفا یک گزینه را انتخاب کنید';
+        placeholderOption.value = '';
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        placeholderOption.hidden = true; // Optional
+        visitsDropdown.appendChild(placeholderOption);
+    
+        visits.forEach(visit => {
+            const option = document.createElement('option');
+            option.value = visit.ref_id;
+            option.textContent = `پزشک: ${visit.doctor_info.name} ${visit.doctor_info.family} - ${visit.book_time_string}`;
+            // Store the submission title in a data attribute
+            option.setAttribute('data-submission-title', `درخواست پشتیبانی برای ویزیت با ${visit.doctor_info.name} ${visit.doctor_info.family}`);
+            visitsDropdown.appendChild(option);
+        });
+    
+        // "None of the above" option
+        const noneOption = document.createElement('option');
+        noneOption.value = 'none';
+        noneOption.textContent = 'هیچکدام';
+        visitsDropdown.appendChild(noneOption);
+    }
+    
+});

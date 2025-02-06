@@ -1,0 +1,28 @@
+jQuery(document).ready(function($) {
+    $('.send-porsline-ticket').click(function() {
+        var button = $(this);
+        var ticketId = button.data('ticket-id');
+        button.html('Loading...'); // Optionally show loading text or spinner
+
+        $.ajax({
+            type: 'POST',
+            url: ajax_object.ajax_url,
+            data: {
+                action: 'send_porsline_ticket', // This should match the action hook in PHP
+                ticketId: ticketId // Sending the ticket ID
+            },
+            success: function(response) {
+                if(response.success) {
+                    window.location.href = response.data.redirect_url;
+                } else {
+                    alert('Error: ' + response.data.error);
+                    button.html('ارتباط با پشتیبانی'); // Reset button text
+                }
+            },
+            error: function() {
+                alert('An error occurred');
+                button.html('ارتباط با پشتیبانی'); // Reset button text
+            }
+        });
+    });
+});

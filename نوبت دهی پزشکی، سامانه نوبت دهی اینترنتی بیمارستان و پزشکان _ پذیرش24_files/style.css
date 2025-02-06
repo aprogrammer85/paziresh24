@@ -1,0 +1,13 @@
+a.view-doctor-tickets-button {
+    border: 1px solid #3861fb;
+    color: #3861fb;
+    border-radius: 8px;
+    padding: 10px;
+    width: 100%;
+    display: block;
+    text-align: center;
+}
+a.view-doctor-tickets-button:hover {
+    background-color: #3861fb;
+    color: #fff;
+}

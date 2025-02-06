@@ -1,0 +1,289 @@
+/* Add your styles here */
+.profile-list {
+    direction: rtl;
+    text-align: right;
+}
+
+.profile {
+    margin-bottom: 10px;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 0;
+    background: #ffffff;
+    padding: 20px;
+
+}
+
+.profile-photo {
+    float: right;
+    margin-left: 10px;
+}
+
+.profile-photo img {
+    width: 100px;
+    height: auto;
+}
+
+.profile-info {
+    float: right;
+}
+
+.profile-name {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.profile-experience, .profile-answered-number, .profile-rate, .profile-departments {
+    font-size: 14px;
+}
+
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}
+/* Add styles for the stars */
+.star {
+    color: gold;
+    font-size: 29px;
+    line-height: 1;
+}
+
+.filled {
+    color: #E0A800; /* Or any other color you prefer for filled stars */
+}
+
+/* Update styles for the profile photo to include a default image */
+.profile-photo img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover; /* To maintain aspect ratio without stretching */
+    border-radius: 50%!important;
+}
+
+.profile-photo {
+    position: relative; /* This makes the .online-status positioning relative to the photo */
+}
+
+.online-status {
+    width: 15px;
+    height: 15px;
+    background-color: #00FF00;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 10px;
+    left: 25px;
+}
+
+a.contact-button, a.profile-button {
+    float: left;
+}
+
+.contact-button {
+    display: block;
+    margin-top: 10px;
+    text-align: center;
+    background-color: #3861fb;
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    text-decoration: none;
+}
+
+.contact-button:hover {
+    background: #ffffff;
+    color: #3861fb;
+    border: 1px solid #3861fb;
+}
+
+.profile-name a {
+    color: #3861fb;
+}
+
+.profile-button:hover {
+    background: #3861fb;
+    color: #ffffff;
+}
+
+.profile-button {
+    display: block;
+    margin-top: 10px;
+    text-align: center;
+    background-color: #ffffff;
+    color: #3861fb;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #3861fb;
+    text-decoration: none;
+}
+
+@media screen and (max-width: 768px) {
+    .profile-button {
+        width: 100%;
+    }
+    .contact-button {
+        width: 100%;
+    }  
+}
+#new_widget_button {
+    background: #3861fb;
+    border-radius: 6px;
+    padding: 7px 30px;
+    font-size: 14px;
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    float: left;
+}
+
+a {
+    text-decoration: none!important;
+}
+
+.breadcrumb {
+    margin-bottom: 20px;
+    padding: 10px 0;
+    font-size: 16px;
+}
+.breadcrumb a {
+    color: #007bff;
+    text-decoration: none;
+}
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+
+#unread_counter {
+    background: #b00000;
+    border-radius: 50px;
+    padding: 3px;
+    font-size: 14px;
+    position: absolute;
+    color:white;
+    min-width: 18px;
+    height: 18px;
+    top:-5px;
+    right:0;
+    z-index: 5;
+    text-align: center;
+    font-weight: bold;
+}
+
+.profile-badge {
+    background: white;
+    width: fit-content;
+    padding: 5px 15px;
+    border: 1px solid #3861fb;
+    border-radius: 17px;
+    font-size: 14px;
+    color: #3861fb;
+    margin: 15px 0px;
+    font-weight: 700;
+}
+.profile-departments-inside {
+    background: white;
+    width: auto;
+    width: fit-content;
+    padding: 5px 15px;
+    border: 1px solid #04aa6d;
+    border-radius: 17px;
+    font-size: 12px;
+    background: #eafaee;
+    color: #04aa6d;
+    margin-right: 10px;
+}
+.profile-departments {
+    margin-top: 10px;
+    display: flex;
+    align-content: flex-start;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+}
+
+
+.review-good {
+    padding: 5px 10px;
+    margin: 5px;
+    background-color: #d4edda;
+    border-left: 6px solid #28a745;
+    display: inline-block;
+    border-radius: 4px;
+}
+
+.review-bad {
+    padding: 5px 10px;
+    margin: 5px;
+    background-color: #f8d7da;
+    border-left: 6px solid #dc3545;
+    display: inline-block;
+    border-radius: 4px;
+}
+
+.review-description {
+    margin-top: 10px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+
+.profile-rating {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.review-user {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.review-rate {
+    font-weight: bold;
+    color: #333;
+}
+
+.review {
+    background: #ffffff;
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px;
+}
+
+.profile-rate {
+    display: flex;
+    justify-content: flex-start;
+    align-content: space-between;
+    align-items: center;
+}
+
+.pagination a {
+    margin: 0 5px;
+    padding: 5px 10px;
+    background-color: #f0f0f0;
+    color: #333;
+    text-decoration: none;
+}
+
+.pagination a:hover {
+    background-color: #ddd;
+}
+
+#npsChart {
+    padding: 10px;
+    border-radius: 8px;
+    background: white;
+    /* width: 100% !important; */
+}
+
+#npsChart-container {
+    max-width: 100%;  /* Ensures that the container does not overflow the parent */
+    margin: auto;  /* Centers the chart in the available space */
+}
+
+@media screen and (min-width: 768px) {
+    #npsChart-container {
+        max-width: 800px;  /* Optional: you can set a specific max-width for larger screens */
+    }
+}
